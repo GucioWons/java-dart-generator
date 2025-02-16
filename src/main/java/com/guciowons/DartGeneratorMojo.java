@@ -36,7 +36,7 @@ public class DartGeneratorMojo extends AbstractMojo {
             Files.walk(Paths.get(outputDirectory.toURI()))
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith("DTO.class"))
-                    .forEach(path -> classProcessor.processClass(path, classLoader));
+                    .forEach(path -> classProcessor.processClassFromPath(path, classLoader));
 
         } catch (IOException e) {
             throw new MojoExecutionException("Could not generate dart files", e);
