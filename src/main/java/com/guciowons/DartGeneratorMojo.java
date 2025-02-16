@@ -2,7 +2,6 @@ package com.guciowons;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -32,10 +31,12 @@ public class DartGeneratorMojo extends AbstractMojo {
 
             URLClassLoader classLoader = new URLClassLoader(new URL[]{outputDirectory.toURI().toURL()});
 
+            ClassProcessor classProcessor = new ClassProcessor(outputDirectory);
+
             Files.walk(Paths.get(outputDirectory.toURI()))
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith("DTO.class"))
-                    .forEach(System.out::println);
+                    .forEach(path -> classProcessor.processClass(path, classLoader));
 
         } catch (IOException e) {
             throw new MojoExecutionException("Could not generate dart files", e);
