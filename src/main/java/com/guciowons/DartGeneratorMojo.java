@@ -42,7 +42,8 @@ public class DartGeneratorMojo extends AbstractMojo {
             classProcessor.getClassDescriptions()
                     .forEach(classDescription -> {
                         System.out.println(classDescription.getClassName());
-                        classDescription.getFields().forEach((name, type) -> System.out.println(name + ": " + type));
+//                        classDescription.getEnumValues().forEach(System.out::println);
+//                        classDescription.getFields().forEach((name, type) -> System.out.println(name + ": " + type));
                     });
 
         } catch (IOException e) {

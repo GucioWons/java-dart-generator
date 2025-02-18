@@ -15,7 +15,7 @@ public class ClassProcessor {
     private final File outputDirectory;
     private final TypeMapper typeMapper;
 
-    private final Map<String, String> typesMap = new HashMap<>();
+    private final Set<String> processedClasses = new HashSet<>();
 
     private final List<ClassDescription> classDescriptions = new ArrayList<>();
 
@@ -32,39 +32,45 @@ public class ClassProcessor {
                     .replace(".class", "");
 
             Class<?> clazz = Class.forName(className, false, classLoader);
-            classDescriptions.add(processClass(clazz));
+            processClass(clazz);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private ClassDescription processClass(Class<?> clazz) {
+    private void processClass(Class<?> clazz) {
         ClassDescription classDescription = new ClassDescription(clazz.getSimpleName());
-        for (Field field : clazz.getDeclaredFields()) {
-            if (field.getType().isEnum()) {
-                classDescription.addField(field.getName(), field.getType().getSimpleName());
-            } else if (field.getType().isArray() || Collection.class.isAssignableFrom(field.getType())) {
-                if(field.getGenericType() instanceof ParameterizedType parametrizedMapType){
-                    Type[] typeArguments = parametrizedMapType.getActualTypeArguments();
-                    classDescription.addField(field.getName(), "List<" + typeArguments[0].getClass().getSimpleName() + ">");
+        processedClasses.add(clazz.getSimpleName());
+        if (clazz.isEnum()) {
+            Arrays.stream(clazz.getEnumConstants())
+                    .map(Object::toString)
+                    .forEach(classDescription::addEnumValue);
+        } else {
+            for (Field field : clazz.getDeclaredFields()) {
+                if (field.getType().isArray() || Collection.class.isAssignableFrom(field.getType())) {
+                    if(field.getGenericType() instanceof ParameterizedType parametrizedMapType){
+                        Type[] typeArguments = parametrizedMapType.getActualTypeArguments();
+                        classDescription.addField(field.getName(), "List<" + typeArguments[0].getClass().getSimpleName() + ">");
+                    }
+                } else if (Map.class.isAssignableFrom(field.getType())) {
+                    if(field.getGenericType() instanceof ParameterizedType parametrizedMapType){
+                        Type[] typeArguments = parametrizedMapType.getActualTypeArguments();
+                        classDescription.addField(field.getName(), "Map<" + typeArguments[0].getClass().getSimpleName() + ", " + typeArguments[1].getClass().getSimpleName() + ">");
+                    }
+                } else {
+                    String fieldType = typeMapper.map(field.getType().getSimpleName())
+                            .orElseGet(() -> processNextClass(field));
+                    classDescription.addField(field.getName(), fieldType);
                 }
-            } else if (Map.class.isAssignableFrom(field.getType())) {
-                if(field.getGenericType() instanceof ParameterizedType parametrizedMapType){
-                    Type[] typeArguments = parametrizedMapType.getActualTypeArguments();
-                    classDescription.addField(field.getName(), "Map<" + typeArguments[0].getClass().getSimpleName() + ", " + typeArguments[1].getClass().getSimpleName() + ">");
-                }
-            } else {
-                String fieldType = typeMapper.map(field.getType().getSimpleName(), typesMap)
-                        .orElseGet(() -> processNextClass(field));
-                classDescription.addField(field.getName(), fieldType);
-                typesMap.put(field.getType().getSimpleName(), fieldType);
             }
         }
-        return classDescription;
+        classDescriptions.add(classDescription);
     }
 
     private String processNextClass(Field field) {
-        processClass(field.getType());
+        if(!processedClasses.contains(field.getType().getSimpleName())) {
+            processClass(field.getType());
+        }
         return field.getType().getSimpleName();
     }
 
